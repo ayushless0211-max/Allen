@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { db } from './firebase';
-import { doc, getDoc, arrayUnion, collection, addDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, arrayUnion, collection, addDoc, updateDoc, setDoc } from 'firebase/firestore';
 import { CourseBatch } from './types';
 import { SAMPLE_BATCHES } from './Dashboard';
 import { 
@@ -53,20 +53,29 @@ export default function BatchView() {
   // Handle Token Claim if redirected from Ad Process
   useEffect(() => {
     const claimToken = async () => {
-      const adToken = searchParams.get('ad_token');
+      const adToken = searchParams.get('verify_token');
       if (adToken && user && profile && !claimingToken) {
         setClaimingToken(true);
         try {
-          const response = await fetch('/api/claim-ad-token', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ tokenId: adToken, userId: user.uid })
-          });
+          // Read token from Firestore
+          const tokenRef = doc(db, 'ad_tokens', adToken);
+          const tokenSnap = await getDoc(tokenRef);
           
-          if (response.ok) {
-            const data = await response.json();
-            if (data.success && data.batchId === id) {
-              // Add 48 hours access
+          if (tokenSnap.exists()) {
+            const tokenData = tokenSnap.data();
+            
+            // ULTRA SECURE VALIDATION
+            if (tokenData.userId !== user.uid) {
+              alert("Security Alert: This ad token belongs to another user. Access denied.");
+            } else if (tokenData.status !== 'pending') {
+              alert("This ad link has already been used or expired. You cannot reuse it.");
+            } else if (tokenData.batchId !== id) {
+              alert("This ad token is for a different batch.");
+            } else {
+              // 1. Mark as claimed immediately to prevent reuse
+              await updateDoc(tokenRef, { status: 'claimed' });
+              
+              // 2. Add 48 hours access
               const expiry = Date.now() + (48 * 60 * 60 * 1000);
               const currentAdAccess = profile.adAccess || {};
               await updateProfile({
@@ -77,20 +86,17 @@ export default function BatchView() {
               });
               
               setPurchaseSuccess(true);
-              
-              // Remove token from URL
-              searchParams.delete('ad_token');
-              setSearchParams(searchParams);
+              alert("Success! You have unlocked this batch for 48 hours.");
             }
           } else {
-            const data = await response.json();
-            alert(`Failed to verify ad token: ${data.error}`);
-            searchParams.delete('ad_token');
-            setSearchParams(searchParams);
+            alert("Invalid or broken token.");
           }
         } catch (err) {
           console.error("Error claiming token:", err);
+          alert("Failed to verify ad token.");
         } finally {
+          searchParams.delete('verify_token');
+          setSearchParams(searchParams);
           setClaimingToken(false);
         }
       }
@@ -189,20 +195,57 @@ export default function BatchView() {
     if (!user || !batch) return;
     setAdLinkLoading(true);
     try {
-      const response = await fetch('/api/generate-ad-link', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: user.uid, batchId: batch.id, provider, origin: window.location.origin })
+      if (provider !== 'shrinkme') {
+        alert("This provider is coming soon.");
+        setAdLinkLoading(false);
+        return;
+      }
+      
+      // 1. Generate unique ad token locally
+      const tokenId = `ad_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+      
+      // 2. Persist to Firestore instantly
+      const tokenRef = doc(db, 'ad_tokens', tokenId);
+      await setDoc(tokenRef, {
+        userId: user.uid,
+        batchId: batch.id,
+        status: 'pending',
+        createdAt: Date.now()
       });
-      const data = await response.json();
-      if (response.ok && data.shortUrl) {
-        window.location.href = data.shortUrl; // Redirect to ad service
+      
+      // 3. Create target URL to return back to this page with token
+      const targetUrl = `${window.location.origin}/batch/${batch.id}?verify_token=${tokenId}`;
+      
+      // 4. Generate Short URL via CORS proxy to bypass Vercel server limits
+      const shrinkmeApiUrl = `https://shrinkme.io/api?api=405b1b2a840f356e2909c00826fba076788f7041&url=${encodeURIComponent(targetUrl)}`;
+      
+      let data;
+      try {
+        // Try direct fetch first (if CORS is enabled by provider)
+        const response = await fetch(shrinkmeApiUrl);
+        data = await response.json();
+      } catch (directErr) {
+        try {
+          // Fallback to a reliable CORS proxy
+          const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(shrinkmeApiUrl)}`;
+          const response = await fetch(proxyUrl);
+          data = await response.json();
+        } catch (proxyErr) {
+          // Second fallback
+          const proxyUrl2 = `https://corsproxy.io/?${encodeURIComponent(shrinkmeApiUrl)}`;
+          const response = await fetch(proxyUrl2);
+          data = await response.json();
+        }
+      }
+      
+      if (data && data.status === 'success' && data.shortenedUrl) {
+        window.location.href = data.shortenedUrl;
       } else {
-        alert(data.error || 'Failed to generate link');
+        alert('Failed to generate ad link: ' + (data?.message || 'Unknown error'));
       }
     } catch (err) {
       console.error('Error generating link:', err);
-      alert('Error connecting to server');
+      alert('Error connecting to ad service. Please try again.');
     } finally {
       setAdLinkLoading(false);
     }
