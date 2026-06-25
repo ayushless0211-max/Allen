@@ -90,7 +90,8 @@ export default function ChapterView() {
     );
   }
 
-  const isPurchased = profile?.purchasedCourseIds?.includes(batch.id);
+  const isPurchased = profile?.purchasedCourseIds?.includes(batch.id) ||
+    (profile?.adAccess && profile.adAccess[batch.id] && profile.adAccess[batch.id] > Date.now());
   const isAdmin = profile?.role === 'admin';
 
   if (!isPurchased && !isAdmin) {

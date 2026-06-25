@@ -6,6 +6,8 @@ import { GoogleGenAI, Type } from "@google/genai";
 import Razorpay from "razorpay";
 import dotenv from "dotenv";
 
+import { randomUUID } from "crypto";
+
 // Load environment variables
 dotenv.config();
 
@@ -17,6 +19,29 @@ app.use(express.json());
 // Setup mock / local fallback credentials
 const RAZORPAY_KEY_ID = process.env.VITE_RAZORPAY_KEY_ID || "rzp_live_SP1moeTEpMdwF7";
 const RAZORPAY_KEY_SECRET = process.env.RAZORPAY_KEY_SECRET || "0Y7NA1wPSIbqIcKeUAXfrZ6f";
+
+// ----------------------------------------------------
+// TOKEN ACCESS MANAGER
+// ----------------------------------------------------
+interface AdToken {
+  id: string;
+  userId: string;
+  batchId: string;
+  status: 'pending' | 'verified' | 'claimed';
+  createdAt: number;
+}
+const adTokens = new Map<string, AdToken>();
+
+// Cleanup old tokens every hour
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, token] of adTokens.entries()) {
+    if (now - token.createdAt > 1000 * 60 * 60) {
+      adTokens.delete(id);
+    }
+  }
+}, 1000 * 60 * 60);
+
 
 let razorpayInstance: Razorpay | null = null;
 function getRazorpay(): Razorpay {
@@ -54,6 +79,96 @@ function getGemini(): GoogleGenAI {
 // ----------------------------------------------------
 // API ROUTES
 // ----------------------------------------------------
+
+app.post("/api/generate-ad-link", async (req, res) => {
+  try {
+    const { userId, batchId, provider, origin } = req.body;
+    if (!userId || !batchId || !provider) {
+      res.status(400).json({ error: "Missing required fields" });
+      return;
+    }
+    
+    const tokenId = randomUUID();
+    adTokens.set(tokenId, { id: tokenId, userId, batchId, status: 'pending', createdAt: Date.now() });
+
+    const targetUrl = `${origin || ('https://' + (req.headers['x-forwarded-host'] || req.get('host')))}/api/verify-ad-token?tokenId=${tokenId}`;
+
+    let shortUrl = "";
+
+    if (provider === 'shrinkme') {
+      const shrinkmeApiUrl = `https://shrinkme.io/api?api=405b1b2a840f356e2909c00826fba076788f7041&url=${encodeURIComponent(targetUrl)}`;
+      const response = await fetch(shrinkmeApiUrl);
+      const data = await response.json();
+      if (data.status === 'success') {
+        shortUrl = data.shortenedUrl;
+      } else {
+        res.status(500).json({ error: "Failed to generate short url" });
+        return;
+      }
+    } else if (provider === 'linkshortify') {
+      res.status(400).json({ error: "Linkshortify is coming soon!" });
+      return;
+    } else {
+      res.status(400).json({ error: "Invalid provider" });
+      return;
+    }
+
+    res.json({ shortUrl });
+  } catch (err: any) {
+    res.status(500).json({ error: "Server error", details: err.message });
+  }
+});
+
+app.get("/api/verify-ad-token", (req, res) => {
+  const { tokenId } = req.query;
+  if (!tokenId || typeof tokenId !== 'string') {
+    res.send("Invalid request");
+    return;
+  }
+  const token = adTokens.get(tokenId);
+  
+  if (!token || token.status !== 'pending') {
+    res.send(`
+      <div style="font-family: sans-serif; text-align: center; margin-top: 50px;">
+        <h2>Invalid or Expired Link</h2>
+        <p>This access link has already been used or has expired. Please generate a new one from the batch page.</p>
+        <a href="/">Go back to Home</a>
+      </div>
+    `);
+    return;
+  }
+  
+  // Mark as verified
+  token.status = 'verified';
+  adTokens.set(tokenId, token);
+  
+  // Redirect back to app with verified token
+  res.redirect(`/batch/${token.batchId}?ad_token=${tokenId}`);
+});
+
+app.post("/api/claim-ad-token", (req, res) => {
+  const { tokenId, userId } = req.body;
+  const token = adTokens.get(tokenId);
+  
+  if (!token) {
+    res.status(400).json({ error: "Invalid token" });
+    return;
+  }
+  if (token.userId !== userId) {
+    res.status(403).json({ error: "Token does not belong to you" });
+    return;
+  }
+  if (token.status !== 'verified') {
+    res.status(400).json({ error: "Token not verified or already claimed" });
+    return;
+  }
+  
+  // Mark as claimed so it can't be used again
+  token.status = 'claimed';
+  adTokens.set(tokenId, token);
+  
+  res.json({ success: true, batchId: token.batchId });
+});
 
 // Create Razorpay Order securely from backend
 app.post("/api/create-razorpay-order", async (req, res) => {

@@ -7,6 +7,7 @@ export interface UserProfile {
   photoURL?: string;
   role: UserRole;
   purchasedCourseIds?: string[];
+  adAccess?: Record<string, number>;
   createdAt?: string;
   username?: string;
 }

@@ -272,7 +272,8 @@ export default function Dashboard() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredBatches.map((batch) => {
-              const isPurchased = profile?.purchasedCourseIds?.includes(batch.id);
+              const isPurchased = profile?.purchasedCourseIds?.includes(batch.id) ||
+                (profile?.adAccess && profile.adAccess[batch.id] && profile.adAccess[batch.id] > Date.now());
               
               return (
                 <div 

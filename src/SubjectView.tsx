@@ -56,7 +56,8 @@ export default function SubjectView() {
   if (authLoading || loading) return <LoadingScreen />;
   if (!batch || !subject) return <div className="p-8 text-white text-center">Subject not found.</div>;
 
-  const isPurchased = profile?.purchasedCourseIds?.includes(batch.id);
+  const isPurchased = profile?.purchasedCourseIds?.includes(batch.id) || 
+    (profile?.adAccess && profile.adAccess[batch.id] && profile.adAccess[batch.id] > Date.now());
   const isAdmin = profile?.role === 'admin';
 
   if (!isPurchased && !isAdmin) {

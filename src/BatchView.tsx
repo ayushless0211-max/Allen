@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from './AuthContext';
 import { db } from './firebase';
-import { doc, getDoc, arrayUnion, collection, addDoc } from 'firebase/firestore';
+import { doc, getDoc, arrayUnion, collection, addDoc, updateDoc } from 'firebase/firestore';
 import { CourseBatch } from './types';
 import { SAMPLE_BATCHES } from './Dashboard';
 import { 
   Play, BookOpen, CheckSquare, RefreshCw, FileText, 
-  CreditCard, Sparkles, Trophy, CheckCircle2, ChevronRight, Lock, Calendar, HelpCircle
+  CreditCard, Sparkles, Trophy, CheckCircle2, ChevronRight, Lock, Calendar, HelpCircle, Link as LinkIcon
 } from 'lucide-react';
 
 const BOOK_COLORS = [
@@ -21,6 +21,7 @@ const BOOK_COLORS = [
 export default function BatchView() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { user, profile, updateProfile } = useAuth();
 
   const [batch, setBatch] = useState<CourseBatch | null>(null);
@@ -29,6 +30,11 @@ export default function BatchView() {
   // Payment states
   const [purchaseLoading, setPurchaseLoading] = useState(false);
   const [purchaseSuccess, setPurchaseSuccess] = useState(false);
+
+  // Ad Access States
+  const [showAdOptions, setShowAdOptions] = useState(false);
+  const [adLinkLoading, setAdLinkLoading] = useState(false);
+  const [claimingToken, setClaimingToken] = useState(false);
 
   // Resize state
   const [itemsPerRow, setItemsPerRow] = useState(3);
@@ -43,6 +49,54 @@ export default function BatchView() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // Handle Token Claim if redirected from Ad Process
+  useEffect(() => {
+    const claimToken = async () => {
+      const adToken = searchParams.get('ad_token');
+      if (adToken && user && profile && !claimingToken) {
+        setClaimingToken(true);
+        try {
+          const response = await fetch('/api/claim-ad-token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tokenId: adToken, userId: user.uid })
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data.success && data.batchId === id) {
+              // Add 48 hours access
+              const expiry = Date.now() + (48 * 60 * 60 * 1000);
+              const currentAdAccess = profile.adAccess || {};
+              await updateProfile({
+                adAccess: {
+                  ...currentAdAccess,
+                  [id as string]: expiry
+                }
+              });
+              
+              setPurchaseSuccess(true);
+              
+              // Remove token from URL
+              searchParams.delete('ad_token');
+              setSearchParams(searchParams);
+            }
+          } else {
+            const data = await response.json();
+            alert(`Failed to verify ad token: ${data.error}`);
+            searchParams.delete('ad_token');
+            setSearchParams(searchParams);
+          }
+        } catch (err) {
+          console.error("Error claiming token:", err);
+        } finally {
+          setClaimingToken(false);
+        }
+      }
+    };
+    claimToken();
+  }, [searchParams, user, profile, id]);
 
   // Fetch Batch details from Firebase or Fallback
   useEffect(() => {
@@ -93,14 +147,15 @@ export default function BatchView() {
     );
   }
 
-  // Check if course is owned
-  const isPurchased = profile?.purchasedCourseIds?.includes(batch.id);
+  // Check if course is owned or has active ad access
+  const isPurchased = profile?.purchasedCourseIds?.includes(batch?.id || "") || 
+    (profile?.adAccess && profile.adAccess[batch?.id || ""] && profile.adAccess[batch?.id || ""] > Date.now());
 
   // ----------------------------------------------------
   // LOGGING & PROFILE UPDATING TRANSACTION
   // ----------------------------------------------------
   const processSuccessfulPurchase = async (method: "razorpay" | "bypass_test", transactionId: string = '') => {
-    if (!user) return;
+    if (!user || !batch) return;
     setPurchaseLoading(true);
     try {
       // 1. Log payment event to purchases database
@@ -127,6 +182,54 @@ export default function BatchView() {
       alert("Purchase went through but update failed! Contact support with receipt.");
     } finally {
       setPurchaseLoading(false);
+    }
+  };
+
+  const handleGenerateAdLink = async (provider: 'shrinkme' | 'linkshortify') => {
+    if (!user || !batch) return;
+    setAdLinkLoading(true);
+    try {
+      const response = await fetch('/api/generate-ad-link', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.uid, batchId: batch.id, provider, origin: window.location.origin })
+      });
+      const data = await response.json();
+      if (response.ok && data.shortUrl) {
+        window.location.href = data.shortUrl; // Redirect to ad service
+      } else {
+        alert(data.error || 'Failed to generate link');
+      }
+    } catch (err) {
+      console.error('Error generating link:', err);
+      alert('Error connecting to server');
+    } finally {
+      setAdLinkLoading(false);
+    }
+  };
+
+  const handleUnenroll = async () => {
+    if (!user || !batch || !profile) return;
+    const confirmUnenroll = window.confirm("Are you sure you want to unenroll from this batch?");
+    if (!confirmUnenroll) return;
+
+    try {
+      const currentPurchased = profile.purchasedCourseIds || [];
+      const currentAdAccess = profile.adAccess || {};
+      
+      const newPurchased = currentPurchased.filter(id => id !== batch.id);
+      const newAdAccess = { ...currentAdAccess };
+      delete newAdAccess[batch.id];
+      
+      await updateProfile({
+        purchasedCourseIds: newPurchased,
+        adAccess: newAdAccess
+      });
+      
+      alert("Successfully unenrolled.");
+    } catch (err) {
+      console.error("Error unenrolling:", err);
+      alert("Failed to unenroll.");
     }
   };
 
@@ -293,16 +396,40 @@ export default function BatchView() {
                   )}
                 </button>
 
-                {/* Instant Testing Bypass Button */}
+                {/* Token Access / Ad Options */}
                 {user ? (
-                  <button
-                    id="checkout_bypass"
-                    disabled={purchaseLoading}
-                    onClick={() => processSuccessfulPurchase("bypass_test")}
-                    className="w-full bg-black hover:bg-white/5 border border-white/10 text-zinc-400 hover:text-white text-sm py-3 rounded-full transition-colors cursor-pointer flex items-center justify-center gap-2"
-                  >
-                    <Sparkles className="w-4 h-4" /> Bypass & Instant Unlock 
-                  </button>
+                  <div className="space-y-3">
+                    <button
+                      onClick={() => setShowAdOptions(!showAdOptions)}
+                      className="w-full bg-black hover:bg-white/5 border border-white/10 text-zinc-400 hover:text-white text-sm py-3 rounded-full transition-colors cursor-pointer flex items-center justify-center gap-2"
+                    >
+                      <Sparkles className="w-4 h-4" /> Get 48 Hours Access for Free
+                    </button>
+                    
+                    {showAdOptions && (
+                      <div className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-4 animate-in fade-in slide-in-from-top-4">
+                        <p className="text-xs text-zinc-400 text-center mb-2">Complete a quick ad process to unlock this batch for 48 hours.</p>
+                        <div className="grid grid-cols-1 gap-3">
+                          <button
+                            onClick={() => handleGenerateAdLink('shrinkme')}
+                            disabled={adLinkLoading}
+                            className="bg-[#2A2B2E] hover:bg-[#34353A] border border-white/5 text-white font-semibold py-3 px-4 rounded-xl text-sm transition-colors flex items-center justify-center gap-2"
+                          >
+                            {adLinkLoading ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <LinkIcon className="w-4 h-4" />}
+                            Unlock via ShrinkMe.io
+                          </button>
+                          
+                          <button
+                            disabled
+                            className="bg-[#2A2B2E]/50 border border-white/5 text-zinc-500 font-semibold py-3 px-4 rounded-xl text-sm cursor-not-allowed flex items-center justify-center gap-2"
+                          >
+                            <LinkIcon className="w-4 h-4 opacity-50" />
+                            Unlock via LinkShortify (Coming Soon)
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 ) : (
                   <button
                     id="auth_redirect"
@@ -320,8 +447,16 @@ export default function BatchView() {
 
       {/* Overview Block for Enrolled users */}
       {isPurchased && (
-        <div className="bg-white/[0.03] border border-white/10 rounded-3xl p-6 space-y-4">
-          <h3 className="text-xl font-semibold text-white">Course Overview</h3>
+        <div className="bg-white/[0.03] border border-white/10 rounded-3xl p-6 space-y-4 relative">
+          <div className="flex justify-between items-start">
+            <h3 className="text-xl font-semibold text-white">Course Overview</h3>
+            <button
+              onClick={handleUnenroll}
+              className="text-xs bg-red-500/10 text-red-400 hover:bg-red-500/20 px-3 py-1.5 rounded-full font-semibold transition-colors cursor-pointer"
+            >
+              Unenroll
+            </button>
+          </div>
           <p className="text-zinc-300 leading-relaxed text-sm md:text-base">
             {batch.description}
           </p>
