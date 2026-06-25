@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="upgrade-insecure-requests">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SkiliSwap</title>
+    <script>
+      // Global error interceptor to handle cross-origin "Script error." gracefully
+      window.addEventListener('error', function(e) {
+        if (e.message && (e.message.toLowerCase().includes('script error') || e.message.toLowerCase().includes('razorpay') || e.filename?.includes('checkout.js'))) {
+          console.warn('[CORS Intercept] Cross-origin or third-party script error handled silently.', e);
+          e.preventDefault();
+          e.stopPropagation();
+          return true;
+        }
+      }, true);
+
+      window.addEventListener('unhandledrejection', function(e) {
+        var reason = e.reason && e.reason.message || String(e.reason);
+        if (reason && (reason.toLowerCase().includes('script error') || reason.toLowerCase().includes('razorpay') || reason.toLowerCase().includes('checkout.js'))) {
+          console.warn('[CORS Intercept] Unhandled promise rejection from third-party script handled silently.', e.reason);
+          e.preventDefault();
+          e.stopPropagation();
+          return true;
+        }
+      }, true);
+    </script>
+    <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+

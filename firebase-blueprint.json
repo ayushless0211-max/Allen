@@ -1,0 +1,85 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User account information and roles",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "role": { "type": "string", "enum": ["student", "admin"] }
+      },
+      "required": ["uid", "email"]
+    },
+    "Batch": {
+      "title": "Batch",
+      "description": "Information about a course batch",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "integer" },
+        "image": { "type": "string" },
+        "subjects": { "type": "array" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "price"]
+    },
+    "Purchase": {
+      "title": "Purchase Log",
+      "description": "Record of a batch purchased by a user",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "userEmail": { "type": "string" },
+        "batchId": { "type": "string" },
+        "batchName": { "type": "string" },
+        "price": { "type": "integer" },
+        "method": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" },
+        "razorpayOrderId": { "type": "string" }
+      },
+      "required": ["id", "userId", "batchId", "price"]
+    },
+    "QuizResult": {
+      "title": "Quiz Result",
+      "description": "User exam progress tracker",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "batchId": { "type": "string" },
+        "subjectName": { "type": "string" },
+        "chapterId": { "type": "string" },
+        "testTitle": { "type": "string" },
+        "score": { "type": "integer" },
+        "totalQuestions": { "type": "integer" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "score", "totalQuestions"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "User profile collection"
+    },
+    "batches/{batchId}": {
+      "schema": "Batch",
+      "description": "Courses/batches collection details"
+    },
+    "purchases/{purchaseId}": {
+      "schema": "Purchase",
+      "description": "All purchase transaction logs"
+    },
+    "results/{resultId}": {
+      "schema": "QuizResult",
+      "description": "Taken test score tracking"
+    }
+  }
+}
