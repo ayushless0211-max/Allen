@@ -37,6 +37,7 @@ export default function AdminView() {
   const [videoUrlInput, setVideoUrlInput] = useState(''); // Google Drive Video URL
   const [videoDuration, setVideoDuration] = useState('45 mins');
   const [isFetchingYoutubeInfo, setIsFetchingYoutubeInfo] = useState(false);
+  const [isAddingVideos, setIsAddingVideos] = useState(false);
 
   const handleFetchYoutubeInfo = async () => {
     if (!videoUrlInput || (!videoUrlInput.includes("youtube.com") && !videoUrlInput.includes("youtu.be"))) {
@@ -288,45 +289,90 @@ export default function AdminView() {
   // ----------------------------------------------------
   const handleAddLecture = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedBatch || !selectedSub || !selectedChapId || !videoTitle || !videoUrlInput) {
-      triggerFeedback('error', 'All fields are required to draft a video lecture');
+    if (!selectedBatch || !selectedSub || !selectedChapId || !videoUrlInput) {
+      triggerFeedback('error', 'Video URL is required');
       return;
     }
 
-    const newLecture: VideoLecture = {
-      id: `lec_${Date.now()}`,
-      title: videoTitle,
-      videoUrl: videoUrlInput.trim(),
-      duration: videoDuration
-    };
+    const urls = videoUrlInput.split(/[\n,]+/).map(u => u.trim()).filter(Boolean);
+    
+    if (urls.length === 0) {
+      triggerFeedback('error', 'Please enter at least one valid URL');
+      return;
+    }
 
-    const updatedSubjects = (selectedBatch.subjects || []).map(sub => {
-      if (sub.id === selectedSub.id) {
-        return {
-          ...sub,
-          chapters: (sub.chapters || []).map(ch => {
-            if (ch.id === selectedChapId) {
-              return {
-                ...ch,
-                lectures: [...(ch.lectures || []), newLecture]
-              };
-            }
-            return ch;
-          })
-        };
-      }
-      return sub;
-    });
+    if (urls.length === 1 && !videoTitle) {
+      triggerFeedback('error', 'Please provide a title for the video');
+      return;
+    }
 
+    setIsAddingVideos(true);
+    
     try {
+      const newLectures: VideoLecture[] = [];
+      for (const [index, url] of urls.entries()) {
+        let title = videoTitle;
+        let duration = videoDuration;
+
+        if (urls.length > 1 || !title) {
+          if (url.includes("youtube.com") || url.includes("youtu.be")) {
+             try {
+               const response = await fetch('/api/youtube-info', {
+                 method: 'POST',
+                 headers: { 'Content-Type': 'application/json' },
+                 body: JSON.stringify({ url: url }),
+               });
+               const data = await response.json();
+               if (data.title && data.title !== 'Unknown Title') title = data.title;
+               else title = `Lecture ${Date.now() + index}`;
+               if (data.duration && data.duration !== 'Unknown') duration = data.duration;
+               else duration = '45 mins';
+             } catch {
+               title = `Lecture ${Date.now() + index}`;
+               duration = '45 mins';
+             }
+          } else {
+             title = `Lecture ${Date.now() + index}`;
+             duration = '45 mins';
+          }
+        }
+
+        newLectures.push({
+          id: `lec_${Date.now()}_${index}`,
+          title: title,
+          videoUrl: url,
+          duration: duration
+        });
+      }
+
+      const updatedSubjects = (selectedBatch.subjects || []).map(sub => {
+        if (sub.id === selectedSub.id) {
+          return {
+            ...sub,
+            chapters: (sub.chapters || []).map(ch => {
+              if (ch.id === selectedChapId) {
+                return {
+                  ...ch,
+                  lectures: [...(ch.lectures || []), ...newLectures]
+                };
+              }
+              return ch;
+            })
+          };
+        }
+        return sub;
+      });
+
       await updateDoc(doc(db, 'batches', selectedBatch.id), {
         subjects: updatedSubjects
       });
       setVideoTitle('');
       setVideoUrlInput('');
-      triggerFeedback('success', `Lecture "${newLecture.title}" appended to classroom!`);
+      triggerFeedback('success', `Added ${newLectures.length} lecture(s) to classroom!`);
     } catch (err: any) {
       triggerFeedback('error', err.message);
+    } finally {
+      setIsAddingVideos(false);
     }
   };
 
@@ -958,21 +1004,20 @@ export default function AdminView() {
 
               <form onSubmit={handleAddLecture} className="space-y-4 pt-4 border-t border-white/5">
                 <div>
-                  <label className="block text-[10px] text-zinc-500 font-sans uppercase font-black tracking-wider mb-1">Lecture Title</label>
+                  <label className="block text-[10px] text-zinc-500 font-sans uppercase font-black tracking-wider mb-1">Lecture Title (Optional for Bulk)</label>
                   <input 
                     type="text" 
                     placeholder="e.g. L2: Gauss Law and solid sphere field"
                     value={videoTitle}
                     onChange={(e) => setVideoTitle(e.target.value)}
                     className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-white text-white"
-                    required
                   />
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div>
                     <div className="flex justify-between items-center mb-1">
-                      <label className="block text-[10px] text-zinc-500 font-sans uppercase font-black tracking-wider">Video URL (YouTube or Drive)</label>
+                      <label className="block text-[10px] text-zinc-500 font-sans uppercase font-black tracking-wider">Video URLs (One per line)</label>
                       {videoUrlInput.includes("youtu") && (
                         <button
                           type="button"
@@ -984,12 +1029,11 @@ export default function AdminView() {
                         </button>
                       )}
                     </div>
-                    <input 
-                      type="text" 
-                      placeholder="e.g. https://youtu.be/..."
+                    <textarea 
+                      placeholder="e.g. https://youtu.be/...&#10;https://youtu.be/..."
                       value={videoUrlInput}
                       onChange={(e) => setVideoUrlInput(e.target.value)}
-                      className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-white text-white font-sans"
+                      className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-white text-white font-sans min-h-[80px]"
                       required
                     />
                   </div>
@@ -1007,9 +1051,10 @@ export default function AdminView() {
 
                 <button 
                   type="submit" 
-                  className="w-full bg-white hover:bg-zinc-200 text-black text-xs font-bold py-2.5 rounded-xl cursor-pointer select-none active:scale-95 transition"
+                  disabled={isAddingVideos}
+                  className="w-full bg-white hover:bg-zinc-200 text-black text-xs font-bold py-2.5 rounded-xl cursor-pointer select-none active:scale-95 transition disabled:opacity-50"
                 >
-                  Append video to lectures playlist
+                  {isAddingVideos ? 'Adding Videos...' : 'Append video(s) to lectures playlist'}
                 </button>
               </form>
             </div>

@@ -56,7 +56,7 @@ export default function LandingPage() {
             <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-black">
               <Sparkles className="w-5 h-5" />
             </div>
-            <span className="text-xl font-semibold tracking-tight">Allun Digital</span>
+            <span className="text-xl font-semibold tracking-tight">Allun</span>
           </div>
           <div className="flex items-center gap-4">
             <button 
