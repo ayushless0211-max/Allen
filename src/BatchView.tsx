@@ -35,6 +35,7 @@ export default function BatchView() {
   const [showAdOptions, setShowAdOptions] = useState(false);
   const [adLinkLoading, setAdLinkLoading] = useState(false);
   const [claimingToken, setClaimingToken] = useState(false);
+  const [showAccessGranted, setShowAccessGranted] = useState(false);
 
   // Resize state
   const [itemsPerRow, setItemsPerRow] = useState(3);
@@ -86,7 +87,7 @@ export default function BatchView() {
               });
               
               setPurchaseSuccess(true);
-              alert("Success! You have unlocked this batch for 48 hours.");
+              setShowAccessGranted(true);
             }
           } else {
             alert("Invalid or broken token.");
@@ -555,6 +556,39 @@ export default function BatchView() {
           )}
         </div>
       </div>
+      {/* Access Granted Overlay Modal */}
+      {showAccessGranted && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+          <div className="bg-zinc-900 border border-white/10 p-8 sm:p-12 rounded-[2rem] max-w-md w-full text-center space-y-6 shadow-2xl relative overflow-hidden animate-in fade-in zoom-in-95 duration-300">
+            {/* Background Glow */}
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[200%] aspect-square bg-emerald-500/10 rounded-full blur-3xl pointer-events-none -translate-y-1/2" />
+            
+            <div className="relative z-10 space-y-6">
+              <div className="w-20 h-20 bg-emerald-500/20 text-emerald-400 mx-auto rounded-full flex items-center justify-center border border-emerald-500/30">
+                <CheckCircle2 className="w-10 h-10" />
+              </div>
+              
+              <div className="space-y-2">
+                <h3 className="text-3xl font-bold text-white tracking-tight">Access Granted</h3>
+                <p className="text-zinc-400 text-sm">
+                  You have successfully unlocked <span className="text-white font-medium">{batch.name}</span> for 48 hours. Enjoy learning!
+                </p>
+              </div>
+
+              <button 
+                onClick={() => {
+                  setShowAccessGranted(false);
+                  window.location.reload(); // Reload to refresh state
+                }}
+                className="w-full bg-white hover:bg-zinc-200 text-black py-4 rounded-xl font-bold transition-colors cursor-pointer"
+              >
+                Enter Classroom
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
