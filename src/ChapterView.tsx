@@ -20,14 +20,6 @@ export default function ChapterView() {
   const [subject, setSubject] = useState<Subject | null>(null);
   const [chapter, setChapter] = useState<Chapter | null>(null);
   const [loading, setLoading] = useState(true);
-  const [now, setNow] = useState(Date.now());
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setNow(Date.now());
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
   
   const [activeVideo, setActiveVideo] = useState<VideoLecture | null>(null);
   const [activeTab, setActiveTab] = useState<'video' | 'notes' | 'practice' | 'revise'>('video');
@@ -99,22 +91,8 @@ export default function ChapterView() {
   }
 
   const isPurchased = profile?.purchasedCourseIds?.includes(batch.id) ||
-    (profile?.adAccess && profile.adAccess[batch.id] && profile.adAccess[batch.id] > now);
+    (profile?.adAccess && profile.adAccess[batch.id] && profile.adAccess[batch.id] > Date.now());
   const isAdmin = profile?.role === 'admin';
-
-  const adAccessExpiry = profile?.adAccess?.[batch.id] || 0;
-  const hasActiveAdAccess = adAccessExpiry > now && !profile?.purchasedCourseIds?.includes(batch.id);
-  const remainingMs = adAccessExpiry - now;
-
-  const formatTime = (ms: number) => {
-    if (ms <= 0) return "Expired";
-    const totalSecs = Math.floor(ms / 1000);
-    const secs = totalSecs % 60;
-    const mins = Math.floor(totalSecs / 60) % 60;
-    const hours = Math.floor(totalSecs / 3600);
-    const pad = (num: number) => String(num).padStart(2, '0');
-    return `${hours > 0 ? pad(hours) + ':' : ''}${pad(mins)}:${pad(secs)}`;
-  };
 
   if (!isPurchased && !isAdmin) {
     return (
@@ -281,25 +259,6 @@ export default function ChapterView() {
         <span className="text-[10px] sm:text-xs font-bold text-emerald-400 uppercase tracking-widest block">{batch.name}</span>
         <h1 className="text-lg sm:text-2xl font-black tracking-tight text-white mt-0.5">{chapter.name}</h1>
       </div>
-
-      {/* Ad Access Countdown Banner */}
-      {hasActiveAdAccess && (
-        <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 p-4 rounded-2xl flex flex-col sm:flex-row justify-between items-center gap-3 animate-pulse">
-          <div className="flex items-center gap-3">
-            <span className="relative flex h-3 w-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
-            </span>
-            <p className="text-sm font-medium text-left">
-              You have <span className="font-semibold text-white">Temporary Ad Access</span> active for this batch.
-            </p>
-          </div>
-          <div className="flex items-center gap-2 bg-emerald-500/20 px-4 py-1.5 rounded-full border border-emerald-500/30">
-            <span className="text-xs font-bold uppercase tracking-wider text-emerald-300">Time Left:</span>
-            <span className="font-mono font-bold text-white text-sm">{formatTime(remainingMs)}</span>
-          </div>
-        </div>
-      )}
 
       {/* Video Lecture Player */}
       <div className="bg-black/80 border border-white/10 rounded-xl sm:rounded-2xl overflow-hidden shadow-2xl relative w-full">
