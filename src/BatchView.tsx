@@ -36,6 +36,10 @@ export default function BatchView() {
   const [adLinkLoading, setAdLinkLoading] = useState(false);
   const [claimingToken, setClaimingToken] = useState(false);
   const [showAccessGranted, setShowAccessGranted] = useState(false);
+  const [adDuration, setAdDuration] = useState<'24_hours' | '1_minute'>('24_hours');
+
+  // Reactively ticking current time for precise locking and countdowns
+  const [now, setNow] = useState(Date.now());
 
   // Resize state
   const [itemsPerRow, setItemsPerRow] = useState(3);
@@ -49,6 +53,14 @@ export default function BatchView() {
     handleResize(); // trigger immediately
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Ticking effect to keep "now" up-to-date and trigger UI updates
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+    return () => clearInterval(interval);
   }, []);
 
   // Handle Token Claim if redirected from Ad Process
@@ -76,8 +88,11 @@ export default function BatchView() {
               // 1. Mark as claimed immediately to prevent reuse
               await updateDoc(tokenRef, { status: 'claimed' });
               
-              // 2. Add 48 hours access
-              const expiry = Date.now() + (48 * 60 * 60 * 1000);
+              // 2. Add ad access with selected duration (default: 24 hours)
+              const duration = tokenData.duration || '24_hours';
+              const durationMs = duration === '1_minute' ? (60 * 1000) : (24 * 60 * 60 * 1000);
+              const expiry = Date.now() + durationMs;
+              
               const currentAdAccess = profile.adAccess || {};
               await updateProfile({
                 adAccess: {
@@ -156,7 +171,7 @@ export default function BatchView() {
 
   // Check if course is owned or has active ad access
   const isPurchased = profile?.purchasedCourseIds?.includes(batch?.id || "") || 
-    (profile?.adAccess && profile.adAccess[batch?.id || ""] && profile.adAccess[batch?.id || ""] > Date.now());
+    (profile?.adAccess && profile.adAccess[batch?.id || ""] && profile.adAccess[batch?.id || ""] > now);
 
   // ----------------------------------------------------
   // LOGGING & PROFILE UPDATING TRANSACTION
@@ -205,12 +220,13 @@ export default function BatchView() {
       // 1. Generate unique ad token locally
       const tokenId = `ad_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
       
-      // 2. Persist to Firestore instantly
+      // 2. Persist to Firestore instantly with chosen duration
       const tokenRef = doc(db, 'ad_tokens', tokenId);
       await setDoc(tokenRef, {
         userId: user.uid,
         batchId: batch.id,
         status: 'pending',
+        duration: adDuration,
         createdAt: Date.now()
       });
       
@@ -338,6 +354,20 @@ export default function BatchView() {
   // ----------------------------------------------------
   // UNIFIED RENDER (With Library Shelf)
   // ----------------------------------------------------
+  const adAccessExpiry = profile?.adAccess?.[batch?.id || ""] || 0;
+  const hasActiveAdAccess = adAccessExpiry > now && !profile?.purchasedCourseIds?.includes(batch?.id || "");
+  const remainingMs = adAccessExpiry - now;
+
+  const formatTime = (ms: number) => {
+    if (ms <= 0) return "Expired";
+    const totalSecs = Math.floor(ms / 1000);
+    const secs = totalSecs % 60;
+    const mins = Math.floor(totalSecs / 60) % 60;
+    const hours = Math.floor(totalSecs / 3600);
+    
+    const pad = (num: number) => String(num).padStart(2, '0');
+    return `${hours > 0 ? pad(hours) + ':' : ''}${pad(mins)}:${pad(secs)}`;
+  };
 
   return (
     <div className="flex flex-col gap-6 p-6 max-w-4xl mx-auto w-full">
@@ -366,6 +396,25 @@ export default function BatchView() {
           <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight mt-3 text-white">{batch.name}</h1>
         </div>
       </div>
+
+      {/* Ad Access Countdown Banner */}
+      {hasActiveAdAccess && (
+        <div className="bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 p-4 rounded-2xl flex flex-col sm:flex-row justify-between items-center gap-3 animate-pulse">
+          <div className="flex items-center gap-3">
+            <span className="relative flex h-3 w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+            </span>
+            <p className="text-sm font-medium">
+              You have <span className="font-semibold text-white">Temporary Ad Access</span> active for this batch.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 bg-emerald-500/20 px-4 py-1.5 rounded-full border border-emerald-500/30">
+            <span className="text-xs font-bold uppercase tracking-wider text-emerald-300">Time Left:</span>
+            <span className="font-mono font-bold text-white text-sm">{formatTime(remainingMs)}</span>
+          </div>
+        </div>
+      )}
 
       {/* Purchase Info Card (Only if not purchased) */}
       {!isPurchased && (
@@ -447,17 +496,50 @@ export default function BatchView() {
                       onClick={() => setShowAdOptions(!showAdOptions)}
                       className="w-full bg-black hover:bg-white/5 border border-white/10 text-zinc-400 hover:text-white text-sm py-3 rounded-full transition-colors cursor-pointer flex items-center justify-center gap-2"
                     >
-                      <Sparkles className="w-4 h-4" /> Get 48 Hours Access for Free
+                      <Sparkles className="w-4 h-4" /> Get Free Access via Ad Link
                     </button>
                     
                     {showAdOptions && (
                       <div className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-4 animate-in fade-in slide-in-from-top-4">
-                        <p className="text-xs text-zinc-400 text-center mb-2">Complete a quick ad process to unlock this batch for 48 hours.</p>
+                        
+                        {/* Dynamic Duration Selector */}
+                        <div className="space-y-2">
+                          <label className="text-[11px] text-zinc-400 font-bold uppercase tracking-wider block text-left">Choose Access Duration:</label>
+                          <div className="grid grid-cols-2 gap-2 bg-black/40 p-1.5 rounded-xl border border-white/5">
+                            <button
+                              type="button"
+                              onClick={() => setAdDuration('24_hours')}
+                              className={`py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                                adDuration === '24_hours'
+                                  ? 'bg-white text-black shadow-md'
+                                  : 'text-zinc-400 hover:text-white'
+                              }`}
+                            >
+                              24 Hours (Regular)
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setAdDuration('1_minute')}
+                              className={`py-2 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                                adDuration === '1_minute'
+                                  ? 'bg-emerald-500 text-black shadow-md'
+                                  : 'text-zinc-400 hover:text-emerald-400'
+                              }`}
+                            >
+                              1 Minute (Test Mode)
+                            </button>
+                          </div>
+                        </div>
+
+                        <p className="text-xs text-zinc-400 text-center mb-2">
+                          Complete a quick ad process to unlock this batch for <span className="text-white font-semibold">{adDuration === '1_minute' ? '1 minute' : '24 hours'}</span>.
+                        </p>
+
                         <div className="grid grid-cols-1 gap-3">
                           <button
                             onClick={() => handleGenerateAdLink('shrinkme')}
                             disabled={adLinkLoading}
-                            className="bg-[#2A2B2E] hover:bg-[#34353A] border border-white/5 text-white font-semibold py-3 px-4 rounded-xl text-sm transition-colors flex items-center justify-center gap-2"
+                            className="bg-[#2A2B2E] hover:bg-[#34353A] border border-white/5 text-white font-semibold py-3 px-4 rounded-xl text-sm transition-colors flex items-center justify-center gap-2 cursor-pointer w-full"
                           >
                             {adLinkLoading ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <LinkIcon className="w-4 h-4" />}
                             Unlock via ShrinkMe.io
@@ -465,7 +547,7 @@ export default function BatchView() {
                           
                           <button
                             disabled
-                            className="bg-[#2A2B2E]/50 border border-white/5 text-zinc-500 font-semibold py-3 px-4 rounded-xl text-sm cursor-not-allowed flex items-center justify-center gap-2"
+                            className="bg-[#2A2B2E]/50 border border-white/5 text-zinc-500 font-semibold py-3 px-4 rounded-xl text-sm cursor-not-allowed flex items-center justify-center gap-2 w-full"
                           >
                             <LinkIcon className="w-4 h-4 opacity-50" />
                             Unlock via LinkShortify (Coming Soon)

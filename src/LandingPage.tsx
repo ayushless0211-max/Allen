@@ -78,8 +78,8 @@ export default function LandingPage() {
       <main className="flex-1 flex items-center justify-center px-6 relative z-10 pt-24">
         <div className="max-w-3xl text-center">
           <h1 className="text-6xl sm:text-7xl md:text-[7rem] font-medium tracking-tighter leading-[0.9] mb-8">
-            Rob The Rich.<br/>
-            <span className="text-white/30">Feed The Poor.</span>
+            Trade skills.<br/>
+            <span className="text-white/30">Not money.</span>
           </h1>
           <p className="text-xl md:text-2xl text-white/50 max-w-xl mx-auto leading-relaxed font-light tracking-tight mb-12">
             Join a curated network of professionals exchanging knowledge. Find what you need, teach what you know.
