@@ -24,7 +24,7 @@ export default function AdminView() {
   // Course Batch Creator states
   const [newBatchName, setNewBatchName] = useState('');
   const [newBatchDesc, setNewBatchDesc] = useState('');
-  const [newBatchPrice, setNewBatchPrice] = useState(1499);
+  const [newBatchPrice, setNewBatchPrice] = useState(10);
   const [newBatchImage, setNewBatchImage] = useState('');
   const [newBatchSubjects, setNewBatchSubjects] = useState<string>('Physics, Chemistry, Mathematics');
 

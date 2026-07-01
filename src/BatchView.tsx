@@ -330,8 +330,8 @@ export default function BatchView() {
             <div>
               <span className="text-sm text-zinc-400 block mb-1">Lifetime Access</span>
               <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-bold text-white tracking-tight">₹{batch.price}</span>
-                <span className="text-sm text-zinc-500 line-through">₹{(batch.price * 2.5).toFixed(0)}</span>
+                <span className="text-3xl font-bold text-white tracking-tight">₹10</span>
+                <span className="text-sm text-zinc-500 line-through">₹25</span>
               </div>
             </div>
             {/* Countdown Badge UI */}

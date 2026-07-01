@@ -12,7 +12,7 @@ export const SAMPLE_BATCHES: CourseBatch[] = [
     id: "arjuna_physics_2026",
     name: "Apex Physics: JEE Main & Advanced",
     description: "An intensive masterclass covering Mechanics, Electromagnetism, Modern Physics and Thermodynamics with rigorous, mathematical derivations and problem-solving hacks.",
-    price: 1499,
+    price: 10,
     image: "https://images.unsplash.com/photo-1635070041078-e363dbe005cb?auto=format&fit=crop&q=80&w=600",
     highlights: ["120+ High-Definition Lectures", "Interactive JEE Main & Advanced Practice", "High-Yield Detailed Chapter Notes", "Gemini AI Quiz Builder Integrated"],
     subjects: [
@@ -71,7 +71,7 @@ export const SAMPLE_BATCHES: CourseBatch[] = [
     id: "lakshya_chem_2026",
     name: "Lakshya Organic & Physical Chemistry",
     description: "Complete organic mechanisms (GOC, Nucleophilic substitutions, Carbonyl replacements) and physical chem modules (Chemical Equilibrium, Electrochemistry, Kinetics) for JEE.",
-    price: 1999,
+    price: 10,
     image: "https://images.unsplash.com/photo-1532187863486-abf9d39d66e8?auto=format&fit=crop&q=80&w=600",
     highlights: ["80+ Structured Topic Videos", "Mechanism-by-Mechanism Practice Sheets", "Aromatic Chemistry Notes", "Comprehensive JEE Prep Tests"],
     subjects: [
@@ -117,7 +117,7 @@ export const SAMPLE_BATCHES: CourseBatch[] = [
     id: "apex_math_2026",
     name: "Pratham Coordinate Geometry & Calculus",
     description: "Master differential and integral calculus, complex numbers, conic sections, and matrices tailored precisely for the latest JEE Mains & Advanced level syllabus.",
-    price: 1799,
+    price: 10,
     image: "https://images.unsplash.com/photo-1509228468518-180dd4864904?auto=format&fit=crop&q=80&w=600",
     highlights: ["90+ Dynamic Video Lectures", "Highly Complex Advanced Conic Quizzes", "Chapter-by-Chapter Formulas", "AI Test Generator Tools"],
     subjects: [
@@ -292,7 +292,7 @@ export default function Dashboard() {
                   
                   {/* Top-Left Price Badge */}
                   <div className="absolute top-5 left-5 bg-black/60 backdrop-blur-md border border-white/10 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full text-zinc-300 font-sans">
-                    ₹{batch.price}
+                    ₹10
                   </div>
 
                   {/* Top-Right Round Button: Details / Info ("i") */}
