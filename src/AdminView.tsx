@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { db } from './firebase';
-import { collection, doc, setDoc, onSnapshot, getDocs, getDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, onSnapshot, getDocs, getDoc, updateDoc, deleteDoc, query, where } from 'firebase/firestore';
 import { CourseBatch, Subject, Chapter, VideoLecture, NoteItem, PracticeTest, RevisionResource } from './types';
 import { SAMPLE_BATCHES } from './Dashboard';
 import { 
@@ -84,6 +84,11 @@ export default function AdminView() {
   // Feedback states
   const [successMsg, setSuccessMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
+
+  // Lifetime Access states
+  const [lifetimeEmail, setLifetimeEmail] = useState('');
+  const [targetUser, setTargetUser] = useState<any>(null);
+  const [searchUserLoading, setSearchUserLoading] = useState(false);
 
   // Load of Batches dynamically from firestore on snapshot
   useEffect(() => {
@@ -658,6 +663,44 @@ export default function AdminView() {
   };
 
   // ----------------------------------------------------
+  // ACTION: LIFETIME ACCESS MANAGEMENT
+  // ----------------------------------------------------
+  const handleSearchUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!lifetimeEmail) return;
+    setSearchUserLoading(true);
+    setTargetUser(null);
+    try {
+      const q = query(collection(db, 'users'), where('email', '==', lifetimeEmail.toLowerCase()));
+      const snap = await getDocs(q);
+      if (snap.empty) {
+        triggerFeedback('error', 'No user found with this email.');
+      } else {
+        const userDoc = snap.docs[0];
+        setTargetUser({ id: userDoc.id, ...userDoc.data() });
+      }
+    } catch (err: any) {
+      triggerFeedback('error', 'Error searching user: ' + err.message);
+    } finally {
+      setSearchUserLoading(false);
+    }
+  };
+
+  const handleToggleLifetimeAccess = async () => {
+    if (!targetUser) return;
+    try {
+      const newValue = !targetUser.hasLifetimeAccess;
+      await updateDoc(doc(db, 'users', targetUser.id), {
+        hasLifetimeAccess: newValue
+      });
+      setTargetUser({ ...targetUser, hasLifetimeAccess: newValue });
+      triggerFeedback('success', `Lifetime access ${newValue ? 'granted' : 'halted'} successfully!`);
+    } catch (err: any) {
+      triggerFeedback('error', 'Failed to update access: ' + err.message);
+    }
+  };
+
+  // ----------------------------------------------------
   // RENDER INTERFACE
   // ----------------------------------------------------
   return (
@@ -674,6 +717,59 @@ export default function AdminView() {
           Terminal Alert: {errorMsg}
         </div>
       )}
+
+      {/* LIFETIME ACCESS MANAGEMENT CARD */}
+      <div className="bg-zinc-950 border border-emerald-500/20 rounded-[2rem] p-6 shadow-2xl space-y-4 font-sans text-left">
+        <div className="flex items-center gap-2 pb-2 border-b border-white/5">
+          <Sparkles className="w-5 h-5 text-emerald-400" />
+          <h3 className="text-sm font-bold uppercase tracking-wider text-emerald-400">Lifetime Access Management</h3>
+        </div>
+        
+        <form onSubmit={handleSearchUser} className="flex flex-col sm:flex-row gap-3">
+          <div className="flex-1">
+            <input 
+              type="email" 
+              placeholder="Enter user email..."
+              value={lifetimeEmail}
+              onChange={(e) => setLifetimeEmail(e.target.value)}
+              className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-3 text-xs sm:text-sm text-white focus:outline-none focus:border-emerald-500/50"
+              required
+            />
+          </div>
+          <button 
+            type="submit" 
+            disabled={searchUserLoading}
+            className="bg-zinc-800 hover:bg-zinc-700 text-white font-bold py-3 px-6 rounded-xl text-xs tracking-wider shrink-0 cursor-pointer disabled:opacity-50 transition"
+          >
+            {searchUserLoading ? 'Searching...' : 'Find User'}
+          </button>
+        </form>
+
+        {targetUser && (
+          <div className="bg-black/50 border border-white/5 rounded-xl p-4 flex flex-col sm:flex-row justify-between items-center gap-4 mt-2">
+            <div>
+              <p className="text-sm text-white font-medium">{targetUser.displayName || 'Unknown Name'}</p>
+              <p className="text-xs text-zinc-400">{targetUser.email}</p>
+              {targetUser.hasLifetimeAccess && (
+                <span className="inline-block mt-1 bg-emerald-500/20 text-emerald-400 text-[10px] font-bold px-2 py-0.5 rounded-full border border-emerald-500/30">
+                  Lifetime Access Active
+                </span>
+              )}
+            </div>
+            
+            <button
+              onClick={handleToggleLifetimeAccess}
+              className={`font-bold py-2.5 px-5 rounded-xl text-xs tracking-wider uppercase transition cursor-pointer shrink-0 ${
+                targetUser.hasLifetimeAccess 
+                  ? 'bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 border border-rose-500/30' 
+                  : 'bg-emerald-500 text-black hover:bg-emerald-400'
+              }`}
+            >
+              {targetUser.hasLifetimeAccess ? 'Hault Lifetime Access' : 'Grant Lifetime Access'}
+            </button>
+          </div>
+        )}
+      </div>
 
       {/* 1. SECTOR TOP ROW: SELECT COURSE + PLUS TOGGLE TO CREATE COURSE */}
       <div className="flex flex-col gap-3 font-sans">

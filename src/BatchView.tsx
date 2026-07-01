@@ -156,7 +156,7 @@ export default function BatchView() {
   }
 
   // Check if course is owned or has active ad access
-  const isPurchased = profile?.purchasedCourseIds?.includes(batch?.id || "") || 
+  const isPurchased = profile?.hasLifetimeAccess || profile?.purchasedCourseIds?.includes(batch?.id || "") || 
     (profile?.adAccess && profile.adAccess[batch?.id || ""] && profile.adAccess[batch?.id || ""] > Date.now());
 
   // ----------------------------------------------------
@@ -280,61 +280,15 @@ export default function BatchView() {
   };
 
   // ----------------------------------------------------
-  // REAL TIME CORE RAZORPAY PAYMENT TRIGGER
+  // REAL TIME CORE PAYMENT TRIGGER
   // ----------------------------------------------------
-  const handleRazorpayPurchase = async () => {
+  const handleSecureCheckout = async () => {
     if (!user) {
       // Direct sign in trigger
       navigate('/');
       return;
     }
-
-    setPurchaseLoading(true);
-    try {
-      // Call our secure backend to create order
-      const response = await fetch("/api/create-razorpay-order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: batch.price }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Unable to create secure Razorpay order on server");
-      }
-
-      const orderData = await response.json();
-
-      const options = {
-        key: import.meta.env.VITE_RAZORPAY_KEY_ID || "rzp_test_YourKeyId", 
-        amount: orderData.amount,
-        currency: orderData.currency,
-        name: "Allun",
-        description: `Enrollment into ${batch.name}`,
-        order_id: orderData.id,
-        handler: function (response: any) {
-          processSuccessfulPurchase("razorpay", response.razorpay_payment_id);
-        },
-        prefill: {
-          name: user.displayName || "Student",
-          email: user.email || "",
-        },
-        theme: {
-          color: "#000000",
-        },
-      };
-
-      if ((window as any).Razorpay) {
-        const rzp = new (window as any).Razorpay(options);
-        rzp.open();
-      } else {
-        alert("Razorpay payment gateway script not loaded. Please connect to internet or use test bypass below.");
-        setPurchaseLoading(false);
-      }
-    } catch (err: any) {
-      console.error("Razorpay workflow crash:", err);
-      alert(`Razorpay Checkout Error: ${err.message || err}. Reverting to local bypass.`);
-      setPurchaseLoading(false);
-    }
+    navigate(`/payment/${batch.id}`);
   };
 
   // ----------------------------------------------------
@@ -425,11 +379,10 @@ export default function BatchView() {
               </div>
             ) : (
               <>
-                {/* Razorpay Button */}
                 <button
-                  id="checkout_razorpay"
+                  id="checkout_secure"
                   disabled={purchaseLoading}
-                  onClick={handleRazorpayPurchase}
+                  onClick={handleSecureCheckout}
                   className="w-full bg-white hover:bg-zinc-200 text-black font-semibold py-4 px-6 rounded-full text-base transition-colors flex items-center justify-center gap-2 cursor-pointer"
                 >
                   {purchaseLoading ? (

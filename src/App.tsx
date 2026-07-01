@@ -16,6 +16,8 @@ import CreateGroupDetails from './CreateGroupDetails';
 import LoadingScreen from './LoadingScreen';
 import LandingPage from './LandingPage';
 import HowItWorks from './HowItWorks';
+import Payment from './Payment';
+import PaymentVerification from './PaymentVerification';
 
 // Protected Route ensuring user logins to access features
 const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
@@ -51,6 +53,8 @@ export default function App() {
             <Route path="/dashboard" element={<Dashboard />} />
             
             {/* Protected Student Routes */}
+            <Route path="/payment/:batchId" element={<Payment />} />
+            <Route path="/payment-verification" element={<PaymentVerification />} />
             <Route path="/batch/:id" element={<BatchView />} />
             <Route path="/batch/:batchId/subject/:subjectId" element={<SubjectView />} />
             <Route path="/batch/:batchId/subject/:subjectId/chapter/:chapterId" element={<ChapterView />} />
