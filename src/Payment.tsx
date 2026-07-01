@@ -65,15 +65,7 @@ export default function Payment() {
 
   return (
     <div className="flex flex-col items-center justify-center p-6 min-h-[70vh] w-full max-w-lg mx-auto">
-      <button 
-        onClick={() => navigate(-1)} 
-        className="self-start mb-6 text-zinc-400 hover:text-white flex items-center gap-2 text-sm uppercase tracking-widest font-bold transition-colors cursor-pointer"
-      >
-        <ArrowLeft className="w-4 h-4" /> Back
-      </button>
-
-      <div className="bg-zinc-950 border border-emerald-500/20 rounded-[2rem] p-8 w-full shadow-2xl relative overflow-hidden">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150%] aspect-square bg-emerald-500/5 rounded-full blur-3xl pointer-events-none -translate-y-1/2" />
+      <div className="bg-zinc-950 border border-white/10 rounded-[2rem] p-8 w-full shadow-2xl relative overflow-hidden">
         
         <div className="relative z-10 space-y-8 text-center">
           <div className="space-y-2">
@@ -81,13 +73,13 @@ export default function Payment() {
             <p className="text-sm text-zinc-400">Scan QR or Pay directly via UPI</p>
           </div>
 
-          <div className="bg-white p-6 rounded-2xl mx-auto inline-block border-4 border-emerald-500/20">
+          <div className="bg-white p-6 rounded-2xl mx-auto inline-block border-4 border-white/10">
             <QRCode value={upiUrl} size={200} />
           </div>
 
-          <div className="bg-black/50 p-4 rounded-xl border border-white/5 space-y-1">
+          <div className="bg-black/50 p-4 rounded-xl border border-white/10 space-y-1">
             <p className="text-sm text-zinc-400">UPI ID: <span className="text-white font-mono">{upiId}</span></p>
-            <p className="text-sm text-zinc-400">Amount: <span className="text-emerald-400 font-bold text-lg">₹{batch.price}</span></p>
+            <p className="text-sm text-zinc-400">Amount: <span className="text-white font-bold text-lg">₹{batch.price}</span></p>
           </div>
 
           <div className="space-y-3 pt-4">

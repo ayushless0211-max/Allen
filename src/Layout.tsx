@@ -39,7 +39,7 @@ export default function Layout() {
             {location.pathname !== '/dashboard' && (
               <button 
                 id="back_btn"
-                onClick={() => navigate('/dashboard')} 
+                onClick={() => navigate(-1)} 
                 className="p-2 mr-2 rounded-full bg-white/5 border border-white/10 text-white hover:bg-white/10 transition-all flex items-center justify-center cursor-pointer"
               >
                 <ChevronLeft className="w-5 h-5" />

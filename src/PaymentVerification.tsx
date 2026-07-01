@@ -14,18 +14,10 @@ export default function PaymentVerification() {
 
   return (
     <div className="flex flex-col items-center justify-center p-6 min-h-[70vh] w-full max-w-lg mx-auto">
-      <button 
-        onClick={() => navigate(-1)} 
-        className="self-start mb-6 text-zinc-400 hover:text-white flex items-center gap-2 text-sm uppercase tracking-widest font-bold transition-colors cursor-pointer"
-      >
-        <ArrowLeft className="w-4 h-4" /> Back
-      </button>
-
-      <div className="bg-zinc-950 border border-[#0088cc]/30 rounded-[2rem] p-8 w-full shadow-2xl relative overflow-hidden text-center">
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[150%] aspect-square bg-[#0088cc]/10 rounded-full blur-3xl pointer-events-none -translate-y-1/2" />
+      <div className="bg-zinc-950 border border-white/10 rounded-[2rem] p-8 w-full shadow-2xl relative overflow-hidden text-center">
         
         <div className="relative z-10 space-y-6">
-          <div className="w-16 h-16 bg-[#0088cc]/20 text-[#0088cc] mx-auto rounded-full flex items-center justify-center border border-[#0088cc]/30">
+          <div className="w-16 h-16 bg-white/5 text-white mx-auto rounded-full flex items-center justify-center border border-white/10">
             <MessageCircle className="w-8 h-8" />
           </div>
           
@@ -36,9 +28,9 @@ export default function PaymentVerification() {
             </p>
           </div>
 
-          <div className="bg-black/40 p-4 rounded-xl border border-white/5 inline-block w-full">
+          <div className="bg-black/40 p-4 rounded-xl border border-white/10 inline-block w-full">
             <p className="text-xs text-zinc-500 uppercase tracking-widest font-bold mb-1">Telegram ID</p>
-            <p className="text-[#0088cc] font-mono font-bold text-lg">@{telegramId}</p>
+            <p className="text-white font-mono font-bold text-lg">@{telegramId}</p>
           </div>
 
           <div className="pt-4">
