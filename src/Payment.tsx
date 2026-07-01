@@ -50,7 +50,7 @@ export default function Payment() {
   }
 
   const upiId = "ayushless0211@okicici";
-  const upiUrl = `upi://pay?pa=${upiId}&pn=Ayush&am=${batch.price}&cu=INR`;
+  const upiUrl = `upi://pay?pa=${upiId}&pn=Ayush&am=10.00&cu=INR`;
 
   const handlePay = () => {
     // Attempt to open UPI deep link
@@ -79,7 +79,7 @@ export default function Payment() {
 
           <div className="bg-black/50 p-4 rounded-xl border border-white/10 space-y-1">
             <p className="text-sm text-zinc-400">UPI ID: <span className="text-white font-mono">{upiId}</span></p>
-            <p className="text-sm text-zinc-400">Amount: <span className="text-white font-bold text-lg">₹{batch.price}</span></p>
+            <p className="text-sm text-zinc-400">Amount: <span className="text-white font-bold text-lg">₹10.00</span></p>
           </div>
 
           <div className="space-y-3 pt-4">
