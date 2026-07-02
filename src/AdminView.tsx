@@ -68,6 +68,7 @@ export default function AdminView() {
   // Notes Creator state
   const [noteTitle, setNoteTitle] = useState('');
   const [noteContent, setNoteContent] = useState('');
+  const [notePdfUrl, setNotePdfUrl] = useState('');
 
   // AI Quiz Creator states
   const [aiTopic, setAiTopic] = useState('');
@@ -75,6 +76,10 @@ export default function AdminView() {
   const [aiQuestionCount, setAiQuestionCount] = useState(4);
   const [aiGenerating, setAiGenerating] = useState(false);
   const [generatedQuiz, setGeneratedQuiz] = useState<any | null>(null);
+
+  // Manual Practice PDF states
+  const [practicePdfTitle, setPracticePdfTitle] = useState('');
+  const [practicePdfUrl, setPracticePdfUrl] = useState('');
 
   // Revision Creator states
   const [revTitle, setRevTitle] = useState('');
@@ -386,15 +391,20 @@ export default function AdminView() {
   // ----------------------------------------------------
   const handleAddNotes = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedBatch || !selectedSub || !selectedChapId || !noteTitle || !noteContent) {
-      triggerFeedback('error', 'All fields are required to append study notes');
+    if (!selectedBatch || !selectedSub || !selectedChapId || !noteTitle) {
+      triggerFeedback('error', 'Note title is required');
+      return;
+    }
+    if (!noteContent && !notePdfUrl) {
+      triggerFeedback('error', 'Please provide either notes content or a PDF URL');
       return;
     }
 
     const newNote: NoteItem = {
       id: `note_${Date.now()}`,
       title: noteTitle,
-      content: noteContent
+      content: noteContent || undefined,
+      pdfUrl: notePdfUrl || undefined
     };
 
     const updatedSubjects = (selectedBatch.subjects || []).map(sub => {
@@ -421,6 +431,7 @@ export default function AdminView() {
       });
       setNoteTitle('');
       setNoteContent('');
+      setNotePdfUrl('');
       triggerFeedback('success', `Study Notes "${newNote.title}" appended successfully!`);
     } catch (err: any) {
       triggerFeedback('error', err.message);
@@ -553,6 +564,49 @@ export default function AdminView() {
       setGeneratedQuiz(null);
       setAiTopic('');
       triggerFeedback('success', `AI generated quiz successfully bound to Chapter's practice database!`);
+    } catch (err: any) {
+      triggerFeedback('error', err.message);
+    }
+  };
+
+  const handleAddPracticePdf = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedBatch || !selectedSub || !selectedChapId || !practicePdfTitle || !practicePdfUrl) {
+      triggerFeedback('error', 'All fields are required to add a practice PDF');
+      return;
+    }
+
+    const newPracticeTest: PracticeTest = {
+      id: `test_${Date.now()}`,
+      title: practicePdfTitle,
+      pdfUrl: practicePdfUrl
+    };
+
+    const updatedSubjects = (selectedBatch.subjects || []).map(sub => {
+      if (sub.id === selectedSub.id) {
+        return {
+          ...sub,
+          chapters: (sub.chapters || []).map(ch => {
+            if (ch.id === selectedChapId) {
+              return {
+                ...ch,
+                tests: [...(ch.tests || []), newPracticeTest]
+              };
+            }
+            return ch;
+          })
+        };
+      }
+      return sub;
+    });
+
+    try {
+      await updateDoc(doc(db, 'batches', selectedBatch.id), {
+        subjects: updatedSubjects
+      });
+      setPracticePdfTitle('');
+      setPracticePdfUrl('');
+      triggerFeedback('success', `Practice PDF "${newPracticeTest.title}" added successfully!`);
     } catch (err: any) {
       triggerFeedback('error', err.message);
     }
@@ -1066,7 +1120,17 @@ export default function AdminView() {
                     onChange={(e) => setNoteContent(e.target.value)}
                     rows={6}
                     className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-white text-white font-sans"
-                    required
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] text-zinc-500 font-sans uppercase font-black tracking-wider mb-1">Notes PDF URL (Optional if content is provided)</label>
+                  <input 
+                    type="url" 
+                    placeholder="e.g. https://drive.google.com/file/d/... or direct pdf link"
+                    value={notePdfUrl}
+                    onChange={(e) => setNotePdfUrl(e.target.value)}
+                    className="w-full bg-black/40 border border-white/10 rounded-xl px-3 py-2 text-xs focus:outline-none focus:border-white text-white"
                   />
                 </div>
 
@@ -1180,7 +1244,40 @@ export default function AdminView() {
                 Generates mathematically robust multiple choice tests covering concepts, formula derivations, and deep answer solution details matching modern JEE Mains / Advanced patterns.
               </p>
 
+              <div className="space-y-4 pt-2 pb-4 border-b border-white/5">
+                <h4 className="text-[10px] text-zinc-500 font-black uppercase tracking-wider mb-2">Option A: Manual PDF Test</h4>
+                <form onSubmit={handleAddPracticePdf} className="space-y-3">
+                  <div>
+                    <label className="block text-[10px] text-zinc-500 font-sans uppercase font-black tracking-wider mb-1">Test Title</label>
+                    <input 
+                      type="text" 
+                      placeholder="e.g. Chapter Test 1 - Mechanics"
+                      value={practicePdfTitle}
+                      onChange={(e) => setPracticePdfTitle(e.target.value)}
+                      className="w-full bg-black border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] text-zinc-500 font-sans uppercase font-black tracking-wider mb-1">Test PDF URL</label>
+                    <input 
+                      type="url" 
+                      placeholder="e.g. https://drive.google.com/file/d/..."
+                      value={practicePdfUrl}
+                      onChange={(e) => setPracticePdfUrl(e.target.value)}
+                      className="w-full bg-black border border-white/10 rounded-xl px-3 py-2 text-xs text-white focus:outline-none"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="w-full bg-zinc-800 hover:bg-zinc-700 text-white text-xs font-bold py-2.5 rounded-xl cursor-pointer select-none transition"
+                  >
+                    Add Manual PDF Test
+                  </button>
+                </form>
+              </div>
+
               <div className="space-y-4 pt-2">
+                <h4 className="text-[10px] text-zinc-500 font-black uppercase tracking-wider mb-2">Option B: AI Generation</h4>
                 <div>
                   <label className="block text-[10px] text-zinc-500 font-sans uppercase font-black tracking-wider mb-1">Chapter Concept Topic</label>
                   <input 

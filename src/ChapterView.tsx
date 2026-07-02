@@ -396,34 +396,61 @@ export default function ChapterView() {
               {chapter.notes && chapter.notes.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {chapter.notes.map((note, nidx) => (
-                    <a 
-                      key={note.id || `n-${nidx}`}
-                      href={note.pdfUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="bg-black/50 hover:bg-white/[0.04] border border-white/5 p-3.5 sm:p-4 rounded-xl flex items-center justify-between group transition-all duration-200 cursor-pointer gap-2"
-                    >
-                      <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-                        <FileText className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-white shrink-0" />
-                        <span className="font-semibold text-xs sm:text-sm text-zinc-200 group-hover:text-white truncate max-w-[150px] sm:max-w-[180px]">{note.title}</span>
-                      </div>
-                      <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-                        {isAdmin && (
-                          <button
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleDeleteNote(note.id);
-                            }}
-                            className="p-1.5 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-full transition-colors cursor-pointer"
-                            title="Delete Note"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        )}
-                        <ExternalLink className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-zinc-500 group-hover:text-white transition-colors" />
-                      </div>
-                    </a>
+                    <div key={note.id || `n-${nidx}`}>
+                      {note.pdfUrl ? (
+                        <a 
+                          href={note.pdfUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="bg-black/50 hover:bg-white/[0.04] border border-white/5 p-3.5 sm:p-4 rounded-xl flex items-center justify-between group transition-all duration-200 cursor-pointer gap-2"
+                        >
+                          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                            <FileText className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-white shrink-0" />
+                            <span className="font-semibold text-xs sm:text-sm text-zinc-200 group-hover:text-white truncate max-w-[150px] sm:max-w-[180px]">{note.title}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                            {isAdmin && (
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleDeleteNote(note.id);
+                                }}
+                                className="p-1.5 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-full transition-colors cursor-pointer"
+                                title="Delete Note"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                            <ExternalLink className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-zinc-500 group-hover:text-white transition-colors" />
+                          </div>
+                        </a>
+                      ) : (
+                        <button 
+                          onClick={() => alert(`Note Content:\n\n${note.content}`)}
+                          className="w-full bg-black/50 hover:bg-white/[0.04] border border-white/5 p-3.5 sm:p-4 rounded-xl flex items-center justify-between group transition-all duration-200 cursor-pointer gap-2 text-left"
+                        >
+                          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+                            <FileText className="w-4.5 h-4.5 sm:w-5 sm:h-5 text-white shrink-0" />
+                            <span className="font-semibold text-xs sm:text-sm text-zinc-200 group-hover:text-white truncate max-w-[150px] sm:max-w-[180px]">{note.title}</span>
+                          </div>
+                          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+                            {isAdmin && (
+                              <div
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDeleteNote(note.id);
+                                }}
+                                className="p-1.5 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded-full transition-colors cursor-pointer"
+                                title="Delete Note"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </div>
+                            )}
+                          </div>
+                        </button>
+                      )}
+                    </div>
                   ))}
                 </div>
               ) : (
@@ -448,7 +475,11 @@ export default function ChapterView() {
                         >
                           <div className="flex-1">
                             <h4 className="font-bold text-white text-sm sm:text-base">{test.title}</h4>
-                            <p className="text-[10px] sm:text-xs text-zinc-400 mt-1">{test.questions?.length || 0} Multiple Choice Questions • +4 Marks for Correct, -1 for Incorrect</p>
+                            {test.pdfUrl ? (
+                              <p className="text-[10px] sm:text-xs text-zinc-400 mt-1">PDF Practice Sheet</p>
+                            ) : (
+                              <p className="text-[10px] sm:text-xs text-zinc-400 mt-1">{test.questions?.length || 0} Multiple Choice Questions • +4 Marks for Correct, -1 for Incorrect</p>
+                            )}
                           </div>
                           
                           <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
@@ -461,16 +492,27 @@ export default function ChapterView() {
                                 <Trash2 className="w-4 h-4" />
                               </button>
                             )}
-                            <button
-                              onClick={() => {
-                                setActiveTest(test);
-                                setTestAnswers({});
-                                setTestResult(null);
-                              }}
-                              className="flex-1 sm:flex-none w-full sm:w-auto bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 px-4 py-2.5 sm:px-5 rounded-full text-xs sm:text-sm font-semibold transition-colors flex items-center justify-center gap-2 cursor-pointer"
-                            >
-                              <Activity className="w-4 h-4" /> Start Practice Attempt
-                            </button>
+                            {test.pdfUrl ? (
+                              <a
+                                href={test.pdfUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex-1 sm:flex-none w-full sm:w-auto bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 px-4 py-2.5 sm:px-5 rounded-full text-xs sm:text-sm font-semibold transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                              >
+                                <ExternalLink className="w-4 h-4" /> Open PDF
+                              </a>
+                            ) : (
+                              <button
+                                onClick={() => {
+                                  setActiveTest(test);
+                                  setTestAnswers({});
+                                  setTestResult(null);
+                                }}
+                                className="flex-1 sm:flex-none w-full sm:w-auto bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/20 px-4 py-2.5 sm:px-5 rounded-full text-xs sm:text-sm font-semibold transition-colors flex items-center justify-center gap-2 cursor-pointer"
+                              >
+                                <Activity className="w-4 h-4" /> Start Practice Attempt
+                              </button>
+                            )}
                           </div>
                         </div>
                       ))}

@@ -45,7 +45,8 @@ export interface PracticeTest {
   id: string;
   title: string;
   description?: string;
-  questions: PracticeQuestion[];
+  questions?: PracticeQuestion[];
+  pdfUrl?: string;
 }
 
 export interface RevisionResource {
